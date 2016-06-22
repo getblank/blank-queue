@@ -58,6 +58,18 @@ func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 	return nil, err
 }
 
+// args: queue string
+func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	return queue.Length(q), nil
+}
+
 func internalOpenCallback(c *wango.Conn) {
 	log.Info("Connected client", c.ID())
 }
@@ -73,6 +85,7 @@ func startServer() {
 	wampServer.RegisterRPCHandler("push", pushHandler)
 	wampServer.RegisterRPCHandler("unshift", unshiftHandler)
 	wampServer.RegisterRPCHandler("remove", removeHandler)
+	wampServer.RegisterRPCHandler("length", lengthHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {
