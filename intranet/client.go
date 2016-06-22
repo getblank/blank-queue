@@ -50,6 +50,7 @@ func connectToSr() {
 			continue
 		}
 		client.SetSessionCloseCallback(func(c *wango.Conn) {
+			log.Warn("Disconnected from SR")
 			srLocker.Lock()
 			srClient = nil
 			srLocker.Unlock()
