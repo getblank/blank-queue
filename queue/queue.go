@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"os"
@@ -11,6 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	"github.com/ivahaev/go-logger"
 )
 
 var (
@@ -26,9 +25,21 @@ var (
 )
 
 type queueStat struct {
-	Head uint64 `json:"head"`
-	Tail uint64 `json:"tail"`
+	Head    uint64   `json:"head"`
+	Tail    uint64   `json:"tail"`
+	Removed []uint64 `json:"removed"`
 	sync.Mutex
+}
+
+// Length returns queue length
+func Length(queue string) uint64 {
+	stat, err := getStat(queue, nil)
+	if err != nil {
+		return 0
+	}
+	stat.Lock()
+	defer stat.Unlock()
+	return stat.Tail - stat.Head - uint64(len(stat.Removed))
 }
 
 // Push adds item to queue
@@ -36,14 +47,14 @@ func Push(queue string, data interface{}) (err error) {
 	return push(queue, data)
 }
 
-// Unshift returns item from queue with FIFO algorythm
-func Unshift(queue string) (interface{}, error) {
-	return unshift(queue)
-}
-
 // Remove removes item from queue by provided string _id property
 func Remove(queue string, _id string) error {
 	return remove(queue, _id)
+}
+
+// Unshift returns item from queue with FIFO algorythm
+func Unshift(queue string) (interface{}, error) {
+	return unshift(queue)
 }
 
 // Init is a main entry point for package
@@ -67,6 +78,14 @@ func Init(file string) {
 	log.Info("Queue DB started")
 }
 
+func bytesToSeq(b []byte) (seq uint64) {
+	err := json.Unmarshal(b, &seq)
+	if err != nil {
+		logger.Error(err)
+	}
+	return seq
+}
+
 func extractID(data interface{}) (string, bool) {
 	if m, ok := data.(map[string]interface{}); ok && m["_id"] != nil {
 		if _id, ok := m["_id"].(string); ok && _id != "" {
@@ -83,9 +102,17 @@ func getStat(queue string, b *bolt.Bucket) (*queueStat, error) {
 	if stat != nil {
 		return stat, nil
 	}
+	if b == nil {
+		stat, err := getStatFromDb(queue)
+		if err == nil {
+			queues[queue] = stat
+		}
+		return stat, err
+	}
 	stat = new(queueStat)
 	encoded := b.Get(statBytes)
 	if encoded == nil {
+		queues[queue] = stat
 		return stat, nil
 	}
 	err := json.Unmarshal(encoded, stat)
@@ -94,18 +121,40 @@ func getStat(queue string, b *bolt.Bucket) (*queueStat, error) {
 	}
 	return stat, err
 }
+
+func getStatFromDb(queue string) (stat *queueStat, err error) {
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(queue))
+		if b == nil {
+			stat = new(queueStat)
+			return nil
+		}
+		encoded := b.Get(statBytes)
+		if encoded == nil {
+			stat = new(queueStat)
+			return nil
+		}
+		return json.Unmarshal(encoded, stat)
+	})
+	return
+}
+
 func push(queue string, data interface{}) (err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		var b *bolt.Bucket
 		var seq uint64
 		var encoded []byte
-		b, err = tx.CreateBucketIfNotExists([]byte(queue))
-		if err != nil {
-			return err
-		}
-		seq, err = b.NextSequence()
-		if err != nil {
-			return err
+		b = tx.Bucket([]byte(queue))
+		if b == nil {
+			b, err = tx.CreateBucket([]byte(queue))
+			if err != nil {
+				return err
+			}
+		} else {
+			seq, err = b.NextSequence()
+			if err != nil {
+				return err
+			}
 		}
 		encoded, err = json.Marshal(data)
 		if err != nil {
@@ -123,7 +172,7 @@ func push(queue string, data interface{}) (err error) {
 				return err
 			}
 		}
-		err = setQueueTail(queue, seq, b)
+		err = setQueueTail(queue, seq+1, b)
 		return err
 	})
 	return err
@@ -144,18 +193,18 @@ func remove(queue string, _id string) error {
 		if b == nil {
 			return errQueueIsNotExists
 		}
-		return removeByID([]byte(_id), b)
+		return removeByID(queue, []byte(_id), b)
 	})
 	return err
 }
 
-func removeByID(id []byte, b *bolt.Bucket) error {
+func removeByID(queue string, id []byte, b *bolt.Bucket) error {
 	sb := b.Bucket(idToSeqBucket)
 	if sb == nil {
 		return errSeqToIDBucket
 	}
-	seq := sb.Get(id)
-	if seq == nil {
+	seqBytes := sb.Get(id)
+	if seqBytes == nil {
 		return errNotFound
 	}
 	err := sb.Delete(id)
@@ -164,12 +213,26 @@ func removeByID(id []byte, b *bolt.Bucket) error {
 	}
 	sb = b.Bucket(seqToIDBucket)
 	if sb != nil {
-		err = sb.Delete(seq)
+		err = sb.Delete(seqBytes)
 		if err != nil {
 			return err
 		}
 	}
-	return b.Delete(seq)
+	err = b.Delete(seqBytes)
+	if err == nil {
+		seq := bytesToSeq(seqBytes)
+		stat, err := getStat(queue, b)
+		if err != nil {
+			return err
+		}
+		stat.Lock()
+		defer stat.Unlock()
+		if stat.Removed == nil {
+			stat.Removed = []uint64{}
+		}
+		stat.Removed = append(stat.Removed, seq)
+	}
+	return err
 }
 
 func removeRef(seq []byte, b *bolt.Bucket) error {
@@ -231,12 +294,11 @@ func setQueueTail(queue string, tail uint64, b *bolt.Bucket) error {
 }
 
 func seqToBytes(seq uint64) []byte {
-	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, seq)
+	encoded, err := json.Marshal(seq)
 	if err != nil {
-		panic(err)
+		logger.Error(err)
 	}
-	return buf.Bytes()
+	return encoded
 }
 
 func unshift(queue string) (data interface{}, err error) {
@@ -266,7 +328,12 @@ func unshift(queue string) (data interface{}, err error) {
 			if err != nil {
 				return err
 			}
-			stat.Head = seq + 1
+			setQueueHead(queue, seq+1, b)
+			for i := len(stat.Removed) - 1; i >= 0; i-- {
+				if stat.Removed[i] <= stat.Head {
+					stat.Removed = append(stat.Removed[:i], stat.Removed[i+1:]...)
+				}
+			}
 			return nil
 		}
 		return nil
