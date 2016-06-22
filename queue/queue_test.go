@@ -88,6 +88,7 @@ func Test(t *testing.T) {
 			g.Assert(err).Equal(errQueueIsNotExists)
 		})
 	})
+
 	g.Describe("Length", func() {
 		g.It("should return zero when queue is not exists", func() {
 			queue := "test6"
