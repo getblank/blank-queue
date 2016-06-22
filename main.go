@@ -53,7 +53,7 @@ func printVersion() {
 	fmt.Printf("Build time:  		%s\n", buildTime)
 	fmt.Printf("Commit hash: 		%s\n", gitHash)
 	if version == "" {
-		fmt.Println("This build has not version.")
+		fmt.Println("This build has no version.")
 		return
 	}
 	fmt.Printf("Version:     		%s\n", version)
