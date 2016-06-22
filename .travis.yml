@@ -1,0 +1,12 @@
+language: go
+os:
+  - linux
+go:
+  - 1.6.2
+script: go get -t -v ./...
+after_success:
+  - curl --ftp-create-dirs --data-binary -k -T $HOME/gopath/bin/blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-linux/blank-queue
+  - curl --ftp-create-dirs --data-binary -k -T $HOME/gopath/bin/blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
+  - GOOS=darwin GOARCH=amd64 go build
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-osx/blank-queue
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
