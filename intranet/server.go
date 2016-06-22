@@ -1,30 +1,61 @@
 package intranet
 
 import (
+	"errors"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/getblank/wango"
 	"golang.org/x/net/websocket"
+
+	"github.com/getblank/blank-queue/queue"
 )
 
 var (
-	wampServer = wango.New()
+	wampServer          = wango.New()
+	errInvalidArguments = errors.New("invalid arguments")
 )
 
 // args: queue string, data interface{},
 func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	return nil, nil
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := queue.Push(q, args[1])
+	return nil, err
 }
 
 // args: queue string
 func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	return nil, nil
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	return queue.Unshift(q)
 }
 
 // args: queue, id string
 func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	return nil, nil
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	id, ok := args[1].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := queue.Remove(q, id)
+	return nil, err
 }
 
 func internalOpenCallback(c *wango.Conn) {
