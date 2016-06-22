@@ -3,6 +3,8 @@ os:
   - linux
 go:
   - 1.6.2
+before_install:
+  - go get github.com/mattn/goveralls
 script:
   - go get -t -v ./...
   - $HOME/gopath/bin/goveralls -service=travis-ci
