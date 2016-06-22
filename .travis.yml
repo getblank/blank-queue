@@ -10,8 +10,9 @@ script:
   - go get -t -v ./...
   - $HOME/gopath/bin/goveralls -service=travis-ci
 after_success:
-  - curl --ftp-create-dirs --data-binary -k -T $HOME/gopath/bin/blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-linux/blank-queue
-  - curl --ftp-create-dirs --data-binary -k -T $HOME/gopath/bin/blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
-  - GOOS=darwin GOARCH=amd64 go build
+  - go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-linux/blank-queue
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
+  - GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-osx/blank-queue
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
