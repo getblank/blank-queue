@@ -2,6 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/getblank/blank-queue/badge.svg?branch=master)](https://coveralls.io/github/getblank/blank-queue?branch=master)
 [![GoDoc](https://godoc.org/github.com/getblank/blank-queue?status.svg)](https://godoc.org/github.com/getblank/blank-queue/queue)
 [![Go Report Card](https://goreportcard.com/badge/github.com/getblank/blank-queue)](https://goreportcard.com/report/github.com/getblank/blank-queue)
+[![AUR](https://img.shields.io/aur/license/yaourt.svg?maxAge=2592000)]()
 
 # blank-queue
 Queue microservice for Blank platform
