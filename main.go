@@ -14,7 +14,7 @@ import (
 var (
 	buildTime string
 	gitHash   string
-	version   = "0.0.11"
+	version   = "0.0.12"
 )
 
 func main() {
@@ -50,11 +50,5 @@ func main() {
 }
 
 func printVersion() {
-	fmt.Printf("Build time:  		%s\n", buildTime)
-	fmt.Printf("Commit hash: 		%s\n", gitHash)
-	if version == "" {
-		fmt.Println("This build has no version.")
-		return
-	}
-	fmt.Printf("Version:     		%s\n", version)
+	fmt.Printf("blank-queue: \tv%s \t build time: %s \t commit hash: %s \n", version, buildTime, gitHash)
 }
