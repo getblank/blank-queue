@@ -36,6 +36,15 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(1)
 		})
+		g.It("should return error errExistsInQ when pushed item with id existed in the queue", func() {
+			queue := "test22"
+			err := Push(queue, map[string]interface{}{"_id": "1", "data": 1})
+			g.Assert(err == nil).IsTrue()
+			g.Assert(int(Length(queue))).Equal(1)
+			err = Push(queue, map[string]interface{}{"_id": "1", "data": 2})
+			g.Assert(err == errExistsInQ).IsTrue()
+			g.Assert(int(Length(queue))).Equal(1)
+		})
 	})
 
 	g.Describe("Unshift", func() {

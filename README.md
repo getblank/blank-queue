@@ -1,3 +1,4 @@
+[![Blank Queue](https://img.shields.io/badge/blank-queue-orange.svg)](https://github.com/getblank/blank-queue)
 [![Build Status](https://travis-ci.org/getblank/blank-queue.svg?branch=master)](https://travis-ci.org/getblank/blank-queue)
 [![Coverage Status](https://coveralls.io/repos/github/getblank/blank-queue/badge.svg?branch=master)](https://coveralls.io/github/getblank/blank-queue?branch=master)
 [![GoDoc](https://godoc.org/github.com/getblank/blank-queue?status.svg)](https://godoc.org/github.com/getblank/blank-queue/queue)
