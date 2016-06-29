@@ -143,10 +143,9 @@ func push(queue string, data interface{}) (err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		var b *bolt.Bucket
 		var seq uint64
-		var encoded, id []byte
-		var newQ bool
-		b = tx.Bucket([]byte(queue))
-		if b == nil {
+		var encoded, id, seqBytes []byte
+		var newQ, itemExists bool
+		if b = tx.Bucket([]byte(queue)); b == nil {
 			b, err = tx.CreateBucket([]byte(queue))
 			if err != nil {
 				return err
@@ -155,32 +154,36 @@ func push(queue string, data interface{}) (err error) {
 		}
 		if _id, ok := extractID(data); ok {
 			id = []byte(_id)
-			if _, err := getByID(queue, id, b); err == nil {
-				return errExistsInQ
+			if seqBytes, _ = getEncodedSeqByID(queue, id, b); seqBytes != nil {
+				itemExists = true
 			}
 		}
-		if !newQ {
-			seq, err = b.NextSequence()
-			if err != nil {
-				return err
+		if seqBytes == nil {
+			if !newQ {
+				seq, err = b.NextSequence()
+				if err != nil {
+					return err
+				}
 			}
+			seqBytes = seqToBytes(seq)
 		}
 		encoded, err = json.Marshal(data)
 		if err != nil {
 			return err
 		}
-		seqBytes := seqToBytes(seq)
 		err = b.Put(seqBytes, encoded)
 		if err != nil {
 			return err
 		}
-		if id != nil {
-			err = setSeqToIDRef(seqBytes, id, b)
-			if err != nil {
-				return err
+		if !itemExists {
+			if id != nil {
+				err = setSeqToIDRef(seqBytes, id, b)
+				if err != nil {
+					return err
+				}
 			}
+			err = setQueueTail(queue, seq+1, b)
 		}
-		err = setQueueTail(queue, seq+1, b)
 		return err
 	})
 	return err
@@ -206,7 +209,7 @@ func remove(queue string, _id string) error {
 	return err
 }
 
-func getByID(queue string, id []byte, b *bolt.Bucket) ([]byte, error) {
+func getEncodedSeqByID(queue string, id []byte, b *bolt.Bucket) ([]byte, error) {
 	sb := b.Bucket(idToSeqBucket)
 	if sb == nil {
 		return nil, errSeqToIDBucket
@@ -219,7 +222,7 @@ func getByID(queue string, id []byte, b *bolt.Bucket) ([]byte, error) {
 }
 
 func removeByID(queue string, id []byte, b *bolt.Bucket) error {
-	seqBytes, err := getByID(queue, id, b)
+	seqBytes, err := getEncodedSeqByID(queue, id, b)
 	if err != nil {
 		return err
 	}

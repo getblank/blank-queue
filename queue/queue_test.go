@@ -36,14 +36,21 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(1)
 		})
-		g.It("should return error errExistsInQ when pushed item with id existed in the queue", func() {
+		g.It("should replace queued item when pushed item with id existed in the queue", func() {
 			queue := "test22"
 			err := Push(queue, map[string]interface{}{"_id": "1", "data": 1})
 			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(1)
-			err = Push(queue, map[string]interface{}{"_id": "1", "data": 2})
-			g.Assert(err == errExistsInQ).IsTrue()
+			err = Push(queue, map[string]interface{}{"_id": "2", "data": 3})
+			g.Assert(err == nil).IsTrue()
+			g.Assert(int(Length(queue))).Equal(2)
+			err = Push(queue, map[string]interface{}{"_id": "1", "data": 4})
+			g.Assert(err == nil).IsTrue()
+			g.Assert(int(Length(queue))).Equal(2)
+			item, err := Unshift(queue)
+			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(1)
+			g.Assert(item.(map[string]interface{})["data"].(float64)).Equal(float64(4))
 		})
 	})
 
