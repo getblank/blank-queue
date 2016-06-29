@@ -18,7 +18,9 @@ var (
 )
 
 func main() {
-	log.SetLevel(log.DebugLevel)
+	if os.Getenv("BLANK_DEBUG") != "" {
+		log.SetLevel(log.DebugLevel)
+	}
 	var srAddress *string
 	var port *string
 	var dbFile *string
