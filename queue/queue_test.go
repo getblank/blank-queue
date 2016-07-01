@@ -12,11 +12,11 @@ var fileName = "queue.db"
 var strings = []string{"0", "1", "2", "3", "4", "5"}
 
 var maps = []map[string]interface{}{
-	{"_id": "0"},
-	{"_id": "1"},
-	{"_id": "2"},
-	{"_id": "3"},
-	{"_id": "4"},
+	{"_id": "0", "data": "00"},
+	{"_id": "1", "data": "11"},
+	{"_id": "2", "data": "22"},
+	{"_id": "3", "data": "33"},
+	{"_id": "4", "data": "44"},
 }
 
 func Test(t *testing.T) {
@@ -128,6 +128,24 @@ func Test(t *testing.T) {
 			_, err = Unshift(queue)
 			g.Assert(err == nil).IsFalse("queue must be already dropped")
 			g.Assert(Length(queue)).Equal(uint64(0))
+		})
+	})
+
+	g.Describe("#Get", func() {
+		g.It("should return item from queue by provided _id, but keep it in queue untoched", func() {
+			queue := "testGet"
+			g.Assert(Length(queue)).Equal(uint64(0))
+			for _, p := range maps {
+				err := Push(queue, p)
+				g.Assert(err == nil).IsTrue()
+			}
+			g.Assert(Length(queue)).Equal(uint64(5))
+			_item, err := Get(queue, "1")
+			g.Assert(err == nil).IsTrue()
+			g.Assert(Length(queue)).Equal(uint64(5))
+			item := _item.(map[string]interface{})
+			g.Assert(item["_id"].(string)).Equal("1")
+			g.Assert(item["data"].(string)).Equal("11")
 		})
 	})
 }

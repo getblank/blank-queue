@@ -36,6 +36,11 @@ func Drop(queue string) error {
 	return drop(queue)
 }
 
+// Get returns item from queue without removing from queue
+func Get(queue, _id string) (interface{}, error) {
+	return get(queue, _id)
+}
+
 // Length returns queue length
 func Length(queue string) uint64 {
 	log.Debugf("Length request for queue: %s", queue)
@@ -118,6 +123,23 @@ func extractID(data interface{}) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func get(queue, _id string) (data interface{}, err error) {
+	id := []byte(_id)
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(queue))
+		if b == nil {
+			return errQueueIsNotExists
+		}
+		seqBytes, err := getEncodedSeqByID(queue, id, b)
+		if err != nil {
+			return err
+		}
+		encoded := b.Get(seqBytes)
+		return json.Unmarshal(encoded, &data)
+	})
+	return data, err
 }
 
 func getStat(queue string, b *bolt.Bucket) (*queueStat, error) {
