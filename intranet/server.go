@@ -88,7 +88,7 @@ func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 
 // args: queue string
 func dropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Length request arrived ")
+	log.WithField("args", args).Debug("Drop request arrived ")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -98,6 +98,27 @@ func dropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, 
 	}
 	err := queue.Drop(q)
 	return nil, err
+}
+
+// args: queue, id string
+func getHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Get request arrived ")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	id, ok := args[1].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	data, err := queue.Get(q, id)
+	if err != nil {
+		log.WithError(err).WithField("_id", id).Debug("Can't get item")
+	}
+	return data, err
 }
 
 func internalOpenCallback(c *wango.Conn) {
@@ -117,6 +138,7 @@ func startServer() {
 	wampServer.RegisterRPCHandler("remove", removeHandler)
 	wampServer.RegisterRPCHandler("length", lengthHandler)
 	wampServer.RegisterRPCHandler("drop", dropHandler)
+	wampServer.RegisterRPCHandler("get", getHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {
