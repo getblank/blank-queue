@@ -9,7 +9,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
-	"github.com/ivahaev/go-logger"
 )
 
 var (
@@ -32,11 +31,15 @@ type queueStat struct {
 	sync.Mutex
 }
 
+// Drop drops queue and all it's items
+func Drop(queue string) error {
+	return drop(queue)
+}
+
 // Length returns queue length
 func Length(queue string) uint64 {
 	log.Debugf("Length request for queue: %s", queue)
 	stat, err := getStat(queue, nil)
-	logger.Debug(stat, err)
 	if err != nil {
 		return 0
 	}
@@ -90,6 +93,22 @@ func bytesToSeq(b []byte) (seq uint64) {
 		log.Error(err)
 	}
 	return seq
+}
+
+func drop(queue string) (err error) {
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(queue))
+		if b == nil {
+			return errQueueIsNotExists
+		}
+		return tx.DeleteBucket([]byte(queue))
+	})
+	if err == nil {
+		queuesLocker.Lock()
+		defer queuesLocker.Unlock()
+		delete(queues, queue)
+	}
+	return err
 }
 
 func extractID(data interface{}) (string, bool) {

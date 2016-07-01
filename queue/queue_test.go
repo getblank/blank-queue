@@ -23,7 +23,7 @@ func Test(t *testing.T) {
 	g := Goblin(t)
 	os.Remove(fileName)
 	Init(fileName)
-	g.Describe("Push", func() {
+	g.Describe("#Push", func() {
 		g.It("should create queue and statistic", func() {
 			queue := "test1"
 			err := Push(queue, 1)
@@ -54,7 +54,7 @@ func Test(t *testing.T) {
 		})
 	})
 
-	g.Describe("Unshift", func() {
+	g.Describe("#Unshift", func() {
 		g.It("should unshift items from queue in FIFO order", func() {
 			queue := "test3"
 			for _, p := range strings {
@@ -77,7 +77,7 @@ func Test(t *testing.T) {
 
 	})
 
-	g.Describe("Remove", func() {
+	g.Describe("#Remove", func() {
 		g.It("should remove item from queue", func() {
 			queue := "test4"
 			for _, p := range maps {
@@ -105,9 +105,28 @@ func Test(t *testing.T) {
 		})
 	})
 
-	g.Describe("Length", func() {
+	g.Describe("#Length", func() {
 		g.It("should return zero when queue is not exists", func() {
 			queue := "test6"
+			g.Assert(Length(queue)).Equal(uint64(0))
+		})
+	})
+
+	g.Describe("#Drop", func() {
+		g.It("should drop queue and all it's items", func() {
+			queue := "testDrop"
+			g.Assert(Length(queue)).Equal(uint64(0))
+			for _, p := range strings {
+				err := Push(queue, p)
+				g.Assert(err == nil).IsTrue()
+			}
+			g.Assert(Length(queue)).Equal(uint64(6))
+			err := Drop(queue)
+			g.Assert(err == nil).IsTrue()
+			err = Drop(queue)
+			g.Assert(err == nil).IsFalse("queue must be already dropped")
+			_, err = Unshift(queue)
+			g.Assert(err == nil).IsFalse("queue must be already dropped")
 			g.Assert(Length(queue)).Equal(uint64(0))
 		})
 	})
