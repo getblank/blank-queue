@@ -9,6 +9,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+	"github.com/ivahaev/go-logger"
 )
 
 var (
@@ -33,7 +34,9 @@ type queueStat struct {
 
 // Length returns queue length
 func Length(queue string) uint64 {
+	log.Debugf("Length request for queue: %s", queue)
 	stat, err := getStat(queue, nil)
+	logger.Debug(stat, err)
 	if err != nil {
 		return 0
 	}
@@ -44,16 +47,19 @@ func Length(queue string) uint64 {
 
 // Push adds item to queue
 func Push(queue string, data interface{}) (err error) {
+	log.Debugf("Push request to queue: %s", queue)
 	return push(queue, data)
 }
 
 // Remove removes item from queue by provided string _id property
 func Remove(queue string, _id string) error {
+	log.Debugf("Remove request for queue: %s, _id: %s", queue, _id)
 	return remove(queue, _id)
 }
 
 // Unshift returns item from queue with FIFO algorythm
 func Unshift(queue string) (interface{}, error) {
+	log.Debugf("Unshift request for queue: %s", queue)
 	return unshift(queue)
 }
 
@@ -109,7 +115,7 @@ func getStat(queue string, b *bolt.Bucket) (*queueStat, error) {
 		}
 		return stat, err
 	}
-	stat = new(queueStat)
+	stat = &queueStat{Removed: []uint64{}}
 	encoded := b.Get(statBytes)
 	if encoded == nil {
 		queues[queue] = stat
@@ -126,12 +132,13 @@ func getStatFromDb(queue string) (stat *queueStat, err error) {
 	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(queue))
 		if b == nil {
-			stat = new(queueStat)
+			stat = &queueStat{Removed: []uint64{}}
 			return nil
 		}
 		encoded := b.Get(statBytes)
+		err = json.Unmarshal(encoded, stat)
 		if encoded == nil {
-			stat = new(queueStat)
+			stat = &queueStat{Removed: []uint64{}}
 			return nil
 		}
 		return json.Unmarshal(encoded, stat)

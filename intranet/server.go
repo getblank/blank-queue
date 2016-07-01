@@ -18,6 +18,7 @@ var (
 
 // args: queue string, data interface{},
 func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Push request arrived")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
 	}
@@ -26,11 +27,15 @@ func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, 
 		return nil, errInvalidArguments
 	}
 	err := queue.Push(q, args[1])
+	if err != nil {
+		log.WithError(err).Debug("Can't push item")
+	}
 	return nil, err
 }
 
 // args: queue string
 func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Unshift request arrived")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -38,11 +43,16 @@ func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{
 	if !ok {
 		return nil, errInvalidArguments
 	}
-	return queue.Unshift(q)
+	res, err := queue.Unshift(q)
+	if err != nil {
+		log.WithError(err).Debug("Can't unshift item")
+	}
+	return res, err
 }
 
 // args: queue, id string
 func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Remove request arrived ")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
 	}
@@ -55,11 +65,15 @@ func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 		return nil, errInvalidArguments
 	}
 	err := queue.Remove(q, id)
+	if err != nil {
+		log.WithError(err).WithField("_id", id).Debug("Can't remove item")
+	}
 	return nil, err
 }
 
 // args: queue string
 func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Length request arrived ")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -67,7 +81,9 @@ func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 	if !ok {
 		return nil, errInvalidArguments
 	}
-	return queue.Length(q), nil
+	l := queue.Length(q)
+	log.WithField("lenght", l).WithField("queue", q).Debug("Length request processed")
+	return l, nil
 }
 
 func internalOpenCallback(c *wango.Conn) {
