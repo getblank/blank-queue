@@ -47,15 +47,15 @@ func Test(t *testing.T) {
 			err = Push(queue, map[string]interface{}{"_id": "1", "data": 4})
 			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(2)
-			item, err := Unshift(queue)
+			item, err := Shift(queue)
 			g.Assert(err == nil).IsTrue()
 			g.Assert(int(Length(queue))).Equal(1)
 			g.Assert(item.(map[string]interface{})["data"].(float64)).Equal(float64(4))
 		})
 	})
 
-	g.Describe("#Unshift", func() {
-		g.It("should unshift items from queue in FIFO order", func() {
+	g.Describe("#Shift", func() {
+		g.It("should return first item from queue in FIFO order", func() {
 			queue := "test3"
 			for _, p := range strings {
 				err := Push(queue, p)
@@ -63,7 +63,7 @@ func Test(t *testing.T) {
 			}
 			g.Assert(int(Length(queue))).Equal(6)
 			for _, p := range strings {
-				item, err := Unshift(queue)
+				item, err := Shift(queue)
 				g.Assert(err == nil).IsTrue()
 				g.Assert(item.(string)).Equal(p)
 			}
@@ -71,10 +71,31 @@ func Test(t *testing.T) {
 		})
 		g.It("should return error when queue is not exists", func() {
 			queue := "testErrUnshift"
-			_, err := Unshift(queue)
+			_, err := Shift(queue)
 			g.Assert(err).Equal(errQueueIsNotExists)
 		})
 
+	})
+
+	g.Describe("#Unshift", func() {
+		g.It("should insert item to the begining of the queue", func() {
+			queue := "testUnshift"
+			for _, p := range maps {
+				err := Push(queue, p)
+				g.Assert(err == nil).IsTrue()
+			}
+			g.Assert(int(Length(queue))).Equal(5)
+			item, err := Shift(queue)
+			g.Assert(err == nil).IsTrue()
+			g.Assert(int(Length(queue))).Equal(4)
+			g.Assert(item.(map[string]interface{})["_id"].(string)).Equal("0")
+			err = Unshift(queue, item)
+			g.Assert(err == nil).IsTrue()
+			item, err = Shift(queue)
+			g.Assert(err == nil).IsTrue()
+			g.Assert(int(Length(queue))).Equal(4)
+			g.Assert(item.(map[string]interface{})["_id"].(string)).Equal("0")
+		})
 	})
 
 	g.Describe("#Remove", func() {
@@ -92,7 +113,7 @@ func Test(t *testing.T) {
 				if i == 2 {
 					continue
 				}
-				item, err := Unshift(queue)
+				item, err := Shift(queue)
 				g.Assert(err == nil).IsTrue()
 				g.Assert(item.(map[string]interface{})).Equal(p)
 			}
@@ -125,7 +146,7 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			err = Drop(queue)
 			g.Assert(err == nil).IsFalse("queue must be already dropped")
-			_, err = Unshift(queue)
+			_, err = Shift(queue)
 			g.Assert(err == nil).IsFalse("queue must be already dropped")
 			g.Assert(Length(queue)).Equal(uint64(0))
 		})

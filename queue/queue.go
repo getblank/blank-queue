@@ -12,16 +12,17 @@ import (
 )
 
 var (
-	db                  *bolt.DB
-	idToSeqBucket       = []byte("_id2seq")
-	seqToIDBucket       = []byte("_seq2id")
-	statBytes           = []byte("_stat")
-	queues              = map[string]*queueStat{}
-	queuesLocker        = new(sync.Mutex)
-	errQueueIsNotExists = errors.New("queue is not exists")
-	errSeqToIDBucket    = errors.New("seqToIDBucket is not exists")
-	errNotFound         = errors.New("not found")
-	errExistsInQ        = errors.New("item exists in queue")
+	db                    *bolt.DB
+	idToSeqBucket         = []byte("_id2seq")
+	seqToIDBucket         = []byte("_seq2id")
+	statBytes             = []byte("_stat")
+	queues                = map[string]*queueStat{}
+	queuesLocker          = new(sync.Mutex)
+	errQueueIsNotExists   = errors.New("queue is not exists")
+	errSeqToIDBucket      = errors.New("seqToIDBucket is not exists")
+	errNotFound           = errors.New("not found")
+	errExistsInQ          = errors.New("item exists in queue")
+	errQueueInTheBegining = errors.New("queue in the begining")
 )
 
 type queueStat struct {
@@ -53,7 +54,7 @@ func Length(queue string) uint64 {
 	return stat.Tail - stat.Head - uint64(len(stat.Removed))
 }
 
-// Push adds item to queue
+// Push adds item to the end of the queue
 func Push(queue string, data interface{}) (err error) {
 	log.Debugf("Push request to queue: %s", queue)
 	return push(queue, data)
@@ -65,10 +66,15 @@ func Remove(queue string, _id string) error {
 	return remove(queue, _id)
 }
 
-// Unshift returns item from queue with FIFO algorythm
-func Unshift(queue string) (interface{}, error) {
+// Shift returns first item from queue with FIFO algorythm
+func Shift(queue string) (interface{}, error) {
 	log.Debugf("Unshift request for queue: %s", queue)
-	return unshift(queue)
+	return shift(queue)
+}
+
+// Unshift inserts item to the begining of the queue
+func Unshift(queue string, data interface{}) error {
+	return unshift(queue, data)
 }
 
 // Init is a main entry point for package
@@ -369,7 +375,7 @@ func seqToBytes(seq uint64) []byte {
 	return encoded
 }
 
-func unshift(queue string) (data interface{}, err error) {
+func shift(queue string) (data interface{}, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		var b *bolt.Bucket
 		var encoded []byte
@@ -407,4 +413,48 @@ func unshift(queue string) (data interface{}, err error) {
 		return nil
 	})
 	return data, err
+}
+
+func unshift(queue string, data interface{}) (err error) {
+	err = db.Update(func(tx *bolt.Tx) error {
+		var b *bolt.Bucket
+		var encoded, id []byte
+		var stat *queueStat
+		b = tx.Bucket([]byte(queue))
+		if b == nil {
+			return errQueueIsNotExists
+		}
+		stat, err = getStat(queue, b)
+		if err != nil {
+			return err
+		}
+		if stat.Head == 0 {
+			return errQueueInTheBegining
+		}
+		if _id, ok := extractID(data); ok {
+			id = []byte(_id)
+			err = removeByID(queue, id, b)
+			if err != nil && err != errNotFound {
+				return err
+			}
+		}
+		stat.Head--
+		seqBytes := seqToBytes(stat.Head)
+		encoded, err = json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		err = b.Put(seqBytes, encoded)
+		if err != nil {
+			return err
+		}
+		if id != nil {
+			err = setSeqToIDRef(seqBytes, id, b)
+			if err != nil {
+				return err
+			}
+		}
+		return setQueueHead(queue, stat.Head, b)
+	})
+	return nil
 }
