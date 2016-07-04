@@ -35,7 +35,7 @@ func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, 
 
 // args: queue string
 func shiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Unshift request arrived")
+	log.WithField("args", args).Debug("Shift request arrived")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -45,9 +45,26 @@ func shiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{},
 	}
 	res, err := queue.Shift(q)
 	if err != nil {
-		log.WithError(err).Debug("Can't unshift item")
+		log.WithError(err).Debug("Can't shift item")
 	}
 	return res, err
+}
+
+// args: queue string, data interface{},
+func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Unshift request arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	q, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := queue.Unshift(q, args[1])
+	if err != nil {
+		log.WithError(err).Debug("Can't unshift item")
+	}
+	return nil, err
 }
 
 // args: queue, id string
@@ -135,6 +152,7 @@ func startServer() {
 
 	wampServer.RegisterRPCHandler("push", pushHandler)
 	wampServer.RegisterRPCHandler("shift", shiftHandler)
+	wampServer.RegisterRPCHandler("unshift", unshiftHandler)
 	wampServer.RegisterRPCHandler("remove", removeHandler)
 	wampServer.RegisterRPCHandler("length", lengthHandler)
 	wampServer.RegisterRPCHandler("drop", dropHandler)
