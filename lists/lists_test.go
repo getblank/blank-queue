@@ -231,5 +231,35 @@ func Test(t *testing.T) {
 		})
 	})
 
+	g.Describe("#UpdateByID", func() {
+		g.It("should return element from the list by provided _id property", func() {
+			list := "GetByIDListTest"
+			PushBack(list, map[string]interface{}{"_id": "1", "data": "testData1"})
+			PushBack(list, map[string]interface{}{"_id": "2", "data": "testData3"})
+			PushBack(list, map[string]interface{}{"_id": "3", "data": "testData4"})
+
+			err := UpdateByID(list, map[string]interface{}{"_id": "2", "data": "testData2"})
+			g.Assert(err).Equal(nil)
+
+			e, n, _ := GetByID(list, "2")
+			g.Assert(e).Equal(map[string]interface{}{"_id": "2", "data": "testData2"})
+			g.Assert(n).Equal(2)
+		})
+
+		g.It("should return error if no _id property in element", func() {
+			list := "GetByIDListTest"
+
+			err := UpdateByID(list, "20")
+			g.Assert(err).Equal(common.ErrNoIDInTheElement)
+		})
+
+		g.It("should return error if element was not found", func() {
+			list := "GetByIDListTest"
+
+			err := UpdateByID(list, map[string]interface{}{"_id": "20"})
+			g.Assert(err).Equal(common.ErrNotFound)
+		})
+	})
+
 	os.Remove(fileName)
 }

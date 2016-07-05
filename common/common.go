@@ -24,9 +24,10 @@ var (
 
 // common errors
 var (
-	ErrNotFound      = errors.New("not found")
-	ErrSeqToIDBucket = errors.New("seqToIDBucket is not exists")
-	ErrExists        = errors.New("element exists")
+	ErrNotFound         = errors.New("not found")
+	ErrSeqToIDBucket    = errors.New("seqToIDBucket is not exists")
+	ErrExists           = errors.New("element exists")
+	ErrNoIDInTheElement = errors.New("no id in element")
 )
 
 // BytesToSeq converts []byte implementation of sequence to uint64

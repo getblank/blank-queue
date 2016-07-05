@@ -358,6 +358,23 @@ func listGetByIDHandler(c *wango.Conn, _uri string, args ...interface{}) (interf
 	return m{"element": e, "position": n}, err
 }
 
+// args: list string, data interface{}
+func listUpdateByIDHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List UpdateByID arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := lists.UpdateByID(l, args[1])
+	if err != nil {
+		log.WithError(err).Debug("Can't update element by _id")
+	}
+	return nil, err
+}
+
 func internalOpenCallback(c *wango.Conn) {
 	log.Info("Connected client", c.ID())
 }
@@ -389,6 +406,7 @@ func startServer() {
 	wampServer.RegisterRPCHandler("list.drop", listDropHandler)
 	wampServer.RegisterRPCHandler("list.get", listGetHandler)
 	wampServer.RegisterRPCHandler("list.getById", listGetByIDHandler)
+	wampServer.RegisterRPCHandler("list.updateById", listUpdateByIDHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {

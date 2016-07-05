@@ -358,6 +358,36 @@ func RemoveByID(list string, _id string) (err error) {
 	return err
 }
 
+// UpdateByID updates element by provided _id property of the passed element
+// Returns error if queue is not exists or if item was not found it can't write changes
+func UpdateByID(list string, data interface{}) (err error) {
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(list))
+		if b == nil {
+			return common.ErrNotFound
+		}
+		_id, ok := common.ExtractID(data)
+		if !ok {
+			return common.ErrNoIDInTheElement
+		}
+		elB := b.Bucket(common.ElementsBucket)
+		if elB == nil {
+			return common.ErrNotFound
+		}
+		id := []byte(_id)
+		seqBytes, err := common.GetEncodedSeqByID(list, id, b)
+		if err != nil {
+			return err
+		}
+		encoded, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+		return elB.Put(seqBytes, encoded)
+	})
+	return err
+}
+
 func Next(list string, _n int) (data interface{}, n int, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
