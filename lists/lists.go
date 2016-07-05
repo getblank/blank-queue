@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"sync"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
@@ -14,9 +13,8 @@ import (
 )
 
 var (
-	db     *bolt.DB
-	lists  = map[string]*stat{}
-	locker sync.Mutex
+	db    *bolt.DB
+	lists = map[string]*stat{}
 )
 
 var (
@@ -80,8 +78,6 @@ func Back(list string) (data interface{}, seq int, err error) {
 		if err != nil {
 			return err
 		}
-		locker.Lock()
-		defer locker.Unlock()
 		current := stats.Current
 		stats.Current = _seq
 		err = saveStat(stats, b)
@@ -99,8 +95,6 @@ func Drop(list string) (err error) {
 		if err != nil {
 			return err
 		}
-		locker.Lock()
-		defer locker.Unlock()
 		delete(lists, list)
 		return nil
 	})
@@ -135,8 +129,6 @@ func Front(list string) (data interface{}, seq int, err error) {
 		if err != nil {
 			return err
 		}
-		locker.Lock()
-		defer locker.Unlock()
 		current := stats.Current
 		stats.Current = _seq
 		err = saveStat(stats, b)
@@ -431,8 +423,6 @@ func prevShiftedSequence(list string, b *bolt.Bucket) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	locker.Lock()
-	defer locker.Unlock()
 	seq := stats.PrevSequence
 	stats.PrevSequence--
 	err = saveStat(stats, b)
@@ -443,8 +433,6 @@ func prevShiftedSequence(list string, b *bolt.Bucket) (uint64, error) {
 }
 
 func getStat(list string, b *bolt.Bucket) (*stat, error) {
-	locker.Lock()
-	defer locker.Unlock()
 	stats, ok := lists[list]
 	if !ok {
 		_stat := b.Get(common.StatBytes)
