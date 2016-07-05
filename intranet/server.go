@@ -8,6 +8,7 @@ import (
 	"github.com/getblank/wango"
 	"golang.org/x/net/websocket"
 
+	"github.com/getblank/blank-queue/lists"
 	"github.com/getblank/blank-queue/queue"
 )
 
@@ -17,7 +18,7 @@ var (
 )
 
 // args: queue string, data interface{},
-func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+func queuePushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
 	log.WithField("args", args).Debug("Push request arrived")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
@@ -34,7 +35,7 @@ func pushHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, 
 }
 
 // args: queue string
-func shiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+func queueShiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
 	log.WithField("args", args).Debug("Shift request arrived")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
@@ -51,7 +52,7 @@ func shiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{},
 }
 
 // args: queue string, data interface{},
-func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+func queueUnshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
 	log.WithField("args", args).Debug("Unshift request arrived")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
@@ -68,8 +69,8 @@ func unshiftHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{
 }
 
 // args: queue, id string
-func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Remove request arrived ")
+func queueRemoveHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Remove request arrived")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
 	}
@@ -89,8 +90,8 @@ func removeHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 }
 
 // args: queue string
-func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Length request arrived ")
+func queueLengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Length request arrived")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -104,8 +105,8 @@ func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 }
 
 // args: queue string
-func dropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Drop request arrived ")
+func queueDropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Drop request arrived")
 	if len(args) == 0 {
 		return nil, errInvalidArguments
 	}
@@ -118,8 +119,8 @@ func dropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, 
 }
 
 // args: queue, id string
-func getHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
-	log.WithField("args", args).Debug("Get request arrived ")
+func queueGetHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("Get request arrived")
 	if len(args) < 2 {
 		return nil, errInvalidArguments
 	}
@@ -138,6 +139,225 @@ func getHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, e
 	return data, err
 }
 
+type m map[string]interface{}
+
+// args: list string
+func listFrontHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List front request arrived")
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, n, err := lists.Front(l)
+	if err != nil {
+		log.WithError(err).Debug("Can't get element")
+		return nil, err
+	}
+	return m{"element": e, "position": n}, err
+}
+
+// args: list string
+func listBackHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Back arrived")
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, n, err := lists.Back(l)
+	if err != nil {
+		log.WithError(err).Debug("Can't get element")
+		return nil, err
+	}
+	return m{"element": e, "position": n}, err
+}
+
+// args: list string, element interface{}
+func listPushBackHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List PushBack arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	n, err := lists.PushBack(l, args[1])
+	if err != nil {
+		log.WithError(err).Debug("Can't push element to back")
+		return nil, err
+	}
+	return n, err
+}
+
+// args: list string, element interface{}
+func listPushFrontHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List PushFront arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	n, err := lists.PushFront(l, args[1])
+	if err != nil {
+		log.WithError(err).Debug("Can't push element to front")
+		return nil, err
+	}
+	return n, err
+}
+
+// args: list string, n float64
+func listNextHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Next arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_n, ok := args[1].(float64)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, n, err := lists.Next(l, int(_n))
+	if err != nil {
+		log.WithError(err).WithField("position", _n).Debug("Can't get next element")
+		return nil, err
+	}
+	return m{"element": e, "position": n}, err
+}
+
+// args: list string, n float64
+func listPrevHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Prev arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_n, ok := args[1].(float64)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, n, err := lists.Prev(l, int(_n))
+	if err != nil {
+		log.WithError(err).WithField("position", _n).Debug("Can't get prev element")
+		return nil, err
+	}
+	return m{"element": e, "position": n}, err
+}
+
+// args: list string, n float64
+func listRemoveHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Remove arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_n, ok := args[1].(float64)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := lists.Remove(l, int(_n))
+	if err != nil {
+		log.WithError(err).WithField("position", _n).Debug("Can't remove element")
+	}
+	return nil, err
+}
+
+// args: list string, _id string
+func listRemoveByIDHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List RemoveByID arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_id, ok := args[1].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := lists.RemoveByID(l, _id)
+	if err != nil {
+		log.WithError(err).WithField("_id", _id).Debug("Can't remove element")
+	}
+	return nil, err
+}
+
+// args: list string
+func listDropHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Drop arrived")
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	err := lists.Drop(l)
+	if err != nil {
+		log.WithError(err).Debug("Can't drop list")
+	}
+	return nil, err
+}
+
+// args: list string, n float64
+func listGetHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Get arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_n, ok := args[1].(float64)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, err := lists.Get(l, int(_n))
+	if err != nil {
+		log.WithError(err).WithField("position", _n).Debug("Can't get element")
+	}
+	return e, err
+}
+
+// args: list string, _id string
+func listGetByIDHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List GetByID arrived")
+	if len(args) < 2 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	_id, ok := args[1].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	e, n, err := lists.GetByID(l, _id)
+	if err != nil {
+		log.WithError(err).WithField("_id", _id).Debug("Can't get element by _id")
+	}
+	return m{"element": e, "position": n}, err
+}
+
 func internalOpenCallback(c *wango.Conn) {
 	log.Info("Connected client", c.ID())
 }
@@ -150,13 +370,25 @@ func startServer() {
 	wampServer.SetSessionOpenCallback(internalOpenCallback)
 	wampServer.SetSessionCloseCallback(internalCloseCallback)
 
-	wampServer.RegisterRPCHandler("queue.push", pushHandler)
-	wampServer.RegisterRPCHandler("queue.shift", shiftHandler)
-	wampServer.RegisterRPCHandler("queue.unshift", unshiftHandler)
-	wampServer.RegisterRPCHandler("queue.remove", removeHandler)
-	wampServer.RegisterRPCHandler("queue.length", lengthHandler)
-	wampServer.RegisterRPCHandler("queue.drop", dropHandler)
-	wampServer.RegisterRPCHandler("queue.get", getHandler)
+	wampServer.RegisterRPCHandler("queue.push", queuePushHandler)
+	wampServer.RegisterRPCHandler("queue.shift", queueShiftHandler)
+	wampServer.RegisterRPCHandler("queue.unshift", queueUnshiftHandler)
+	wampServer.RegisterRPCHandler("queue.remove", queueRemoveHandler)
+	wampServer.RegisterRPCHandler("queue.length", queueLengthHandler)
+	wampServer.RegisterRPCHandler("queue.drop", queueDropHandler)
+	wampServer.RegisterRPCHandler("queue.get", queueGetHandler)
+
+	wampServer.RegisterRPCHandler("list.front", listFrontHandler)
+	wampServer.RegisterRPCHandler("list.back", listBackHandler)
+	wampServer.RegisterRPCHandler("list.pushBack", listPushBackHandler)
+	wampServer.RegisterRPCHandler("list.pushFront", listPushFrontHandler)
+	wampServer.RegisterRPCHandler("list.next", listNextHandler)
+	wampServer.RegisterRPCHandler("list.prev", listPrevHandler)
+	wampServer.RegisterRPCHandler("list.remove", listRemoveHandler)
+	wampServer.RegisterRPCHandler("list.removeById", listRemoveByIDHandler)
+	wampServer.RegisterRPCHandler("list.drop", listDropHandler)
+	wampServer.RegisterRPCHandler("list.get", listGetHandler)
+	wampServer.RegisterRPCHandler("list.getById", listGetByIDHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {
