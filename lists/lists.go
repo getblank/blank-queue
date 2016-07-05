@@ -24,7 +24,6 @@ var (
 )
 
 type stat struct {
-	Current      uint64   `json:"current"`
 	Marked       []uint64 `json:"marked"`
 	PrevSequence uint64   `json:"prevSequence"`
 }
@@ -50,6 +49,8 @@ func Init(file string) {
 	log.Info("Lists DB started")
 }
 
+// Back returns last element and it's sequence number
+// Returns error if list is empty
 func Back(list string) (data interface{}, seq int, err error) {
 	if Len(list) == 0 {
 		return nil, 0, errListIsEmpty
@@ -70,21 +71,7 @@ func Back(list string) (data interface{}, seq int, err error) {
 		}
 		_seq := common.BytesToSeq(k)
 		seq = int(_seq - common.ZeroPoint)
-		err = json.Unmarshal(v, &data)
-		if err != nil {
-			return err
-		}
-		stats, err := getStat(list, b)
-		if err != nil {
-			return err
-		}
-		current := stats.Current
-		stats.Current = _seq
-		err = saveStat(stats, b)
-		if err != nil {
-			stats.Current = current
-		}
-		return err
+		return json.Unmarshal(v, &data)
 	})
 	return data, seq, nil
 }
@@ -101,6 +88,8 @@ func Drop(list string) (err error) {
 	return nil
 }
 
+// Front moves cursor to the front of the list, returns first element and it's sequence number
+// Returns error if list is empty
 func Front(list string) (data interface{}, seq int, err error) {
 	if Len(list) == 0 {
 		return nil, 0, errListIsEmpty
@@ -121,25 +110,68 @@ func Front(list string) (data interface{}, seq int, err error) {
 		}
 		_seq := common.BytesToSeq(k)
 		seq = int(_seq - common.ZeroPoint)
-		err = json.Unmarshal(v, &data)
-		if err != nil {
-			return err
-		}
-		stats, err := getStat(list, b)
-		if err != nil {
-			return err
-		}
-		current := stats.Current
-		stats.Current = _seq
-		err = saveStat(stats, b)
-		if err != nil {
-			stats.Current = current
-		}
-		return err
+		return json.Unmarshal(v, &data)
 	})
 	return data, seq, nil
 }
 
+// Get returns element by provided sequence number
+// Returns error if list is empty or element was not found
+func Get(list string, n int) (data interface{}, err error) {
+	if Len(list) == 0 {
+		return nil, errListIsEmpty
+	}
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(list))
+		if b == nil {
+			return common.ErrNotFound
+		}
+		elB := b.Bucket(common.ElementsBucket)
+		if elB == nil {
+			return common.ErrNotFound
+		}
+		seq := uint64(n) + common.ZeroPoint
+		seqBytes := common.SeqToBytes(seq)
+		v := elB.Get(seqBytes)
+		if v == nil {
+			return common.ErrNotFound
+		}
+		return json.Unmarshal(v, &data)
+	})
+	return
+}
+
+// GetByID returns element by provided _id property of the stored map
+// Returns error if list is empty or element was not found
+func GetByID(list string, _id string) (data interface{}, n int, err error) {
+	if Len(list) == 0 {
+		return nil, 0, errListIsEmpty
+	}
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(list))
+		if b == nil {
+			return common.ErrNotFound
+		}
+		elB := b.Bucket(common.ElementsBucket)
+		if elB == nil {
+			return common.ErrNotFound
+		}
+		id := []byte(_id)
+		seqBytes, err := common.GetEncodedSeqByID(list, id, b)
+		if err != nil {
+			return err
+		}
+		v := elB.Get(seqBytes)
+		if v == nil {
+			return common.ErrNotFound
+		}
+		n = int(common.BytesToSeq(seqBytes) - common.ZeroPoint)
+		return json.Unmarshal(v, &data)
+	})
+	return
+}
+
+// Len returns total number of the elements in the list
 func Len(list string) (l uint64) {
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
@@ -156,6 +188,8 @@ func Len(list string) (l uint64) {
 	return l
 }
 
+// PushBack adds element to the back of the list and returns it's sequence number
+// Returns error if it can't add element
 func PushBack(list string, data interface{}) (n int, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(list))
@@ -200,6 +234,8 @@ func PushBack(list string, data interface{}) (n int, err error) {
 	return n, err
 }
 
+// PushFront adds element to the front of the list and returns it's sequence number
+// Returns error if it can't add element
 func PushFront(list string, data interface{}) (n int, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(list))
@@ -244,6 +280,8 @@ func PushFront(list string, data interface{}) (n int, err error) {
 	return n, err
 }
 
+// Remove removes element by provided sequence number
+// Returns error if queue is not exists or it can't write changes
 func Remove(list string, n int) (err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
@@ -280,6 +318,8 @@ func Remove(list string, n int) (err error) {
 	return err
 }
 
+// RemoveByID removes element by provided _id property of the stored map
+// Returns error if queue is not exists or it can't write changes
 func RemoveByID(list string, _id string) (err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
@@ -318,7 +358,7 @@ func RemoveByID(list string, _id string) (err error) {
 	return err
 }
 
-func Next(list string) (data interface{}, seq int, err error) {
+func Next(list string, _n int) (data interface{}, n int, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
@@ -328,40 +368,28 @@ func Next(list string) (data interface{}, seq int, err error) {
 		if elB == nil {
 			return common.ErrNotFound
 		}
-		stats, err := getStat(list, b)
-		if err != nil {
-			return err
-		}
-		current := stats.Current
-		seqBytes := common.SeqToBytes(current)
+		seq := uint64(_n) + common.ZeroPoint
+		seqBytes := common.SeqToBytes(seq)
 		c := elB.Cursor()
-		k, _ := c.Seek(seqBytes)
+		k, v := c.Seek(seqBytes)
 		if k == nil {
 			return common.ErrNotFound
 		}
 		if !bytes.Equal(seqBytes, k) {
-			return errCurrupted
+			n = int(common.BytesToSeq(k) - common.ZeroPoint)
+			return json.Unmarshal(v, &data)
 		}
-		k, v := c.Next()
+		k, v = c.Next()
 		if k == nil {
 			return errOutOfRange
 		}
-		err = json.Unmarshal(v, &data)
-		if err != nil {
-			return err
-		}
-		stats.Current = common.BytesToSeq(k)
-		err = saveStat(stats, b)
-		if err != nil {
-			stats.Current = current
-		}
-		seq = int(common.BytesToSeq(k) - common.ZeroPoint)
-		return err
+		n = int(common.BytesToSeq(k) - common.ZeroPoint)
+		return json.Unmarshal(v, &data)
 	})
-	return data, seq, err
+	return data, n, err
 }
 
-func Prev(list string) (data interface{}, seq int, err error) {
+func Prev(list string, _n int) (data interface{}, n int, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
@@ -371,37 +399,21 @@ func Prev(list string) (data interface{}, seq int, err error) {
 		if elB == nil {
 			return common.ErrNotFound
 		}
-		stats, err := getStat(list, b)
-		if err != nil {
-			return err
-		}
-		current := stats.Current
-		seqBytes := common.SeqToBytes(current)
+		seq := uint64(_n) + common.ZeroPoint
+		seqBytes := common.SeqToBytes(seq)
 		c := elB.Cursor()
 		k, _ := c.Seek(seqBytes)
 		if k == nil {
 			return common.ErrNotFound
-		}
-		if !bytes.Equal(seqBytes, k) {
-			return errCurrupted
 		}
 		k, v := c.Prev()
 		if k == nil {
 			return errOutOfRange
 		}
-		err = json.Unmarshal(v, &data)
-		if err != nil {
-			return err
-		}
-		stats.Current = common.BytesToSeq(k)
-		err = saveStat(stats, b)
-		if err != nil {
-			stats.Current = current
-		}
-		seq = int(common.BytesToSeq(k) - common.ZeroPoint)
-		return err
+		n = int(common.BytesToSeq(k) - common.ZeroPoint)
+		return json.Unmarshal(v, &data)
 	})
-	return data, seq, err
+	return data, n, err
 }
 
 // nextShiftedSequence return next sequence for passed bucked shifted by ZeroPoint
@@ -414,7 +426,7 @@ func nextShiftedSequence(b *bolt.Bucket) (uint64, error) {
 }
 
 func newStat() *stat {
-	return &stat{0, []uint64{}, common.ZeroPoint}
+	return &stat{[]uint64{}, common.ZeroPoint}
 }
 
 // need to pass parent bucket

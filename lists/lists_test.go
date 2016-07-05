@@ -51,7 +51,7 @@ func Test(t *testing.T) {
 	})
 
 	g.Describe("#Front", func() {
-		g.It("should move cursor to the first element the list, return element and its sequence number", func() {
+		g.It("should return first element and its sequence number", func() {
 			list := "FrontListTest"
 			n, _ := PushBack(list, "testData")
 
@@ -61,15 +61,11 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			g.Assert(n).Equal(1)
 			g.Assert(e).Equal("testData")
-
-			stats, ok := lists[list]
-			g.Assert(ok).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(1))
 		})
 	})
 
 	g.Describe("#Back", func() {
-		g.It("should move cursor to the last element the list, return element and its sequence number", func() {
+		g.It("should return last element and its sequence number", func() {
 			list := "BackListTest"
 			n, _ := PushBack(list, "testData")
 
@@ -79,35 +75,25 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			g.Assert(n).Equal(2)
 			g.Assert(e).Equal("testData2")
-
-			stats, ok := lists[list]
-			g.Assert(ok).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(2))
 		})
 	})
 
 	g.Describe("#Next", func() {
-		g.It("should move cursor to the next element the list, return element and its sequence number", func() {
+		g.It("should return next element and its sequence number", func() {
 			list := "NextListTest"
 			n, _ := PushBack(list, "testData1")
 			n, _ = PushBack(list, "testData2")
 			n, _ = PushBack(list, "testData3")
 
-			Front(list)
-
-			e, n, err := Next(list)
+			e, n, err := Next(list, 1)
 			g.Assert(e).Equal("testData2")
 			g.Assert(n).Equal(2)
 			g.Assert(err == nil).IsTrue()
-			stats, ok := lists[list]
-			g.Assert(ok).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(2))
 
-			e, n, err = Next(list)
+			e, n, err = Next(list, 2)
 			g.Assert(e).Equal("testData3")
 			g.Assert(n).Equal(3)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(3))
 		})
 
 		g.It("should return errOutOfRange when no prev element", func() {
@@ -116,35 +102,28 @@ func Test(t *testing.T) {
 			PushBack(list, "testData2")
 			PushBack(list, "testData3")
 
-			Back(list)
-			_, _, err := Next(list)
+			_, _, err := Next(list, 3)
 			g.Assert(err).Equal(errOutOfRange)
 		})
 
 	})
 
 	g.Describe("#Prev", func() {
-		g.It("should move cursor to the previous element the list, return element and its sequence number", func() {
+		g.It("should return previous element and its sequence number", func() {
 			list := "PrevListTest"
 			n, _ := PushBack(list, "testData1")
 			n, _ = PushBack(list, "testData2")
 			n, _ = PushBack(list, "testData3")
 
-			Back(list)
-
-			e, n, err := Prev(list)
+			e, n, err := Prev(list, 3)
 			g.Assert(e).Equal("testData2")
 			g.Assert(n).Equal(2)
 			g.Assert(err == nil).IsTrue()
-			stats, ok := lists[list]
-			g.Assert(ok).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(2))
 
-			e, n, err = Prev(list)
+			e, n, err = Prev(list, 2)
 			g.Assert(e).Equal("testData1")
 			g.Assert(n).Equal(1)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(stats.Current - common.ZeroPoint).Equal(uint64(1))
 		})
 
 		g.It("should return errOutOfRange when no prev element", func() {
@@ -153,8 +132,7 @@ func Test(t *testing.T) {
 			PushBack(list, "testData2")
 			PushBack(list, "testData3")
 
-			Front(list)
-			_, _, err := Prev(list)
+			_, _, err := Prev(list, 1)
 			g.Assert(err).Equal(errOutOfRange)
 		})
 	})
@@ -166,10 +144,9 @@ func Test(t *testing.T) {
 			PushBack(list, "testData2")
 			PushBack(list, "testData3")
 
-			Front(list)
 			err := Remove(list, 2)
 			g.Assert(err == nil).IsTrue()
-			e, n, err := Next(list)
+			e, n, err := Next(list, 1)
 			g.Assert(e).Equal("testData3")
 			g.Assert(n).Equal(3)
 			g.Assert(err == nil).IsTrue()
@@ -210,6 +187,47 @@ func Test(t *testing.T) {
 			g.Assert(err == nil).IsTrue()
 			_, _, err = Front(list)
 			g.Assert(err).Equal(errListIsEmpty)
+		})
+	})
+
+	g.Describe("#Get", func() {
+		g.It("should return element from the list by provided sequence number", func() {
+			list := "GetListTest"
+			PushBack(list, "testData1")
+			PushBack(list, "testData2")
+			PushBack(list, "testData3")
+
+			e, err := Get(list, 2)
+			g.Assert(err).Equal(nil)
+			g.Assert(e).Equal("testData2")
+		})
+
+		g.It("should return error if element was not found", func() {
+			list := "GetListTest"
+
+			_, err := Get(list, 20)
+			g.Assert(err).Equal(common.ErrNotFound)
+		})
+	})
+
+	g.Describe("#GetByID", func() {
+		g.It("should return element from the list by provided _id property", func() {
+			list := "GetByIDListTest"
+			PushBack(list, map[string]interface{}{"_id": "1", "data": "testData1"})
+			PushBack(list, map[string]interface{}{"_id": "2", "data": "testData3"})
+			PushBack(list, map[string]interface{}{"_id": "3", "data": "testData4"})
+
+			e, n, err := GetByID(list, "2")
+			g.Assert(e).Equal(map[string]interface{}{"_id": "2", "data": "testData3"})
+			g.Assert(n).Equal(2)
+			g.Assert(err).Equal(nil)
+		})
+
+		g.It("should return error if element was not found", func() {
+			list := "GetByIDListTest"
+
+			_, _, err := GetByID(list, "20")
+			g.Assert(err).Equal(common.ErrNotFound)
 		})
 	})
 
