@@ -150,13 +150,13 @@ func startServer() {
 	wampServer.SetSessionOpenCallback(internalOpenCallback)
 	wampServer.SetSessionCloseCallback(internalCloseCallback)
 
-	wampServer.RegisterRPCHandler("push", pushHandler)
-	wampServer.RegisterRPCHandler("shift", shiftHandler)
-	wampServer.RegisterRPCHandler("unshift", unshiftHandler)
-	wampServer.RegisterRPCHandler("remove", removeHandler)
-	wampServer.RegisterRPCHandler("length", lengthHandler)
-	wampServer.RegisterRPCHandler("drop", dropHandler)
-	wampServer.RegisterRPCHandler("get", getHandler)
+	wampServer.RegisterRPCHandler("queue.push", pushHandler)
+	wampServer.RegisterRPCHandler("queue.shift", shiftHandler)
+	wampServer.RegisterRPCHandler("queue.unshift", unshiftHandler)
+	wampServer.RegisterRPCHandler("queue.remove", removeHandler)
+	wampServer.RegisterRPCHandler("queue.length", lengthHandler)
+	wampServer.RegisterRPCHandler("queue.drop", dropHandler)
+	wampServer.RegisterRPCHandler("queue.get", getHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {
