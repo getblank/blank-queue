@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/getblank/blank-queue/intranet"
+	"github.com/getblank/blank-queue/lists"
 	"github.com/getblank/blank-queue/queue"
 )
 
@@ -21,9 +22,7 @@ func main() {
 	if os.Getenv("BLANK_DEBUG") != "" {
 		log.SetLevel(log.DebugLevel)
 	}
-	var srAddress *string
-	var port *string
-	var dbFile *string
+	var srAddress, port, qdbFile, ldbFile *string
 	var verFlag *bool
 	rootCmd := &cobra.Command{
 		Use:   "blank-queue",
@@ -35,14 +34,16 @@ func main() {
 				return
 			}
 			log.Info("blank-queue started")
-			go queue.Init(*dbFile)
+			go queue.Init(*qdbFile)
+			go lists.Init(*ldbFile)
 			intranet.Init(*srAddress, *port)
 		},
 	}
 
 	srAddress = rootCmd.PersistentFlags().StringP("service-registry", "s", "ws://localhost:1234", "Service registry uri")
 	port = rootCmd.PersistentFlags().StringP("port", "p", "8083", "TCP port to listen")
-	dbFile = rootCmd.PersistentFlags().StringP("db", "d", "queue.db", "Queue database filename")
+	qdbFile = rootCmd.PersistentFlags().StringP("qdb", "q", "queue.db", "Queue database filename")
+	ldbFile = rootCmd.PersistentFlags().StringP("ldb", "l", "lists.db", "Lists database filename")
 	verFlag = rootCmd.PersistentFlags().BoolP("version", "v", false, "Prints version and exit")
 
 	if err := rootCmd.Execute(); err != nil {

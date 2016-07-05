@@ -9,20 +9,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
+
+	"github.com/getblank/blank-queue/common"
 )
 
 var (
 	db                    *bolt.DB
-	idToSeqBucket         = []byte("_id2seq")
-	seqToIDBucket         = []byte("_seq2id")
-	statBytes             = []byte("_stat")
 	queues                = map[string]*queueStat{}
 	queuesLocker          = new(sync.Mutex)
 	errQueueIsNotExists   = errors.New("queue is not exists")
-	errSeqToIDBucket      = errors.New("seqToIDBucket is not exists")
-	errNotFound           = errors.New("not found")
 	errExistsInQ          = errors.New("item exists in queue")
-	errQueueInTheBegining = errors.New("queue in the begining")
+	errQueueInTheBegining = errors.New("queue is in the begining")
 )
 
 type queueStat struct {
@@ -42,8 +39,8 @@ func Get(queue, _id string) (interface{}, error) {
 	return get(queue, _id)
 }
 
-// Length returns queue length
-func Length(queue string) uint64 {
+// Len returns queue length
+func Len(queue string) uint64 {
 	log.Debugf("Length request for queue: %s", queue)
 	stat, err := getStat(queue, nil)
 	if err != nil {
@@ -80,7 +77,7 @@ func Unshift(queue string, data interface{}) error {
 // Init is a main entry point for package
 func Init(file string) {
 	var err error
-	db, err = bolt.Open(file, 0600, nil)
+	db, err = bolt.Open(file, os.ModeExclusive, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -88,7 +85,7 @@ func Init(file string) {
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		for _ = range signalChan {
-			log.Info("Received an interrupt, need to close DB")
+			log.Info("Received an interrupt, need to close queue DB")
 			db.Close()
 			log.Info("App closed")
 			close(signalChan)
@@ -96,14 +93,6 @@ func Init(file string) {
 		}
 	}()
 	log.Info("Queue DB started")
-}
-
-func bytesToSeq(b []byte) (seq uint64) {
-	err := json.Unmarshal(b, &seq)
-	if err != nil {
-		log.Error(err)
-	}
-	return seq
 }
 
 func drop(queue string) (err error) {
@@ -122,15 +111,6 @@ func drop(queue string) (err error) {
 	return err
 }
 
-func extractID(data interface{}) (string, bool) {
-	if m, ok := data.(map[string]interface{}); ok && m["_id"] != nil {
-		if _id, ok := m["_id"].(string); ok && _id != "" {
-			return _id, true
-		}
-	}
-	return "", false
-}
-
 func get(queue, _id string) (data interface{}, err error) {
 	id := []byte(_id)
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -138,7 +118,7 @@ func get(queue, _id string) (data interface{}, err error) {
 		if b == nil {
 			return errQueueIsNotExists
 		}
-		seqBytes, err := getEncodedSeqByID(queue, id, b)
+		seqBytes, err := common.GetEncodedSeqByID(queue, id, b)
 		if err != nil {
 			return err
 		}
@@ -163,7 +143,7 @@ func getStat(queue string, b *bolt.Bucket) (*queueStat, error) {
 		return stat, err
 	}
 	stat = &queueStat{Removed: []uint64{}}
-	encoded := b.Get(statBytes)
+	encoded := b.Get(common.StatBytes)
 	if encoded == nil {
 		queues[queue] = stat
 		return stat, nil
@@ -182,7 +162,7 @@ func getStatFromDb(queue string) (stat *queueStat, err error) {
 			stat = &queueStat{Removed: []uint64{}}
 			return nil
 		}
-		encoded := b.Get(statBytes)
+		encoded := b.Get(common.StatBytes)
 		err = json.Unmarshal(encoded, stat)
 		if encoded == nil {
 			stat = &queueStat{Removed: []uint64{}}
@@ -206,9 +186,9 @@ func push(queue string, data interface{}) (err error) {
 			}
 			newQ = true
 		}
-		if _id, ok := extractID(data); ok {
+		if _id, ok := common.ExtractID(data); ok {
 			id = []byte(_id)
-			if seqBytes, _ = getEncodedSeqByID(queue, id, b); seqBytes != nil {
+			if seqBytes, _ = common.GetEncodedSeqByID(queue, id, b); seqBytes != nil {
 				itemExists = true
 			}
 		}
@@ -219,7 +199,7 @@ func push(queue string, data interface{}) (err error) {
 					return err
 				}
 			}
-			seqBytes = seqToBytes(seq)
+			seqBytes = common.SeqToBytes(seq)
 		}
 		encoded, err = json.Marshal(data)
 		if err != nil {
@@ -231,7 +211,7 @@ func push(queue string, data interface{}) (err error) {
 		}
 		if !itemExists {
 			if id != nil {
-				err = setSeqToIDRef(seqBytes, id, b)
+				err = common.SetSeqToIDRef(seqBytes, id, b)
 				if err != nil {
 					return err
 				}
@@ -248,7 +228,7 @@ func putStat(queue string, stat *queueStat, b *bolt.Bucket) error {
 	if err != nil {
 		return err
 	}
-	return b.Put(statBytes, encoded)
+	return b.Put(common.StatBytes, encoded)
 }
 
 func remove(queue string, _id string) error {
@@ -263,29 +243,17 @@ func remove(queue string, _id string) error {
 	return err
 }
 
-func getEncodedSeqByID(queue string, id []byte, b *bolt.Bucket) ([]byte, error) {
-	sb := b.Bucket(idToSeqBucket)
-	if sb == nil {
-		return nil, errSeqToIDBucket
-	}
-	seqBytes := sb.Get(id)
-	if seqBytes == nil {
-		return nil, errNotFound
-	}
-	return seqBytes, nil
-}
-
 func removeByID(queue string, id []byte, b *bolt.Bucket) error {
-	seqBytes, err := getEncodedSeqByID(queue, id, b)
+	seqBytes, err := common.GetEncodedSeqByID(queue, id, b)
 	if err != nil {
 		return err
 	}
-	sb := b.Bucket(idToSeqBucket)
+	sb := b.Bucket(common.IDToSeqBucket)
 	err = sb.Delete(id)
 	if err != nil {
 		return err
 	}
-	sb = b.Bucket(seqToIDBucket)
+	sb = b.Bucket(common.SeqToIDBucket)
 	if sb != nil {
 		err = sb.Delete(seqBytes)
 		if err != nil {
@@ -294,7 +262,7 @@ func removeByID(queue string, id []byte, b *bolt.Bucket) error {
 	}
 	err = b.Delete(seqBytes)
 	if err == nil {
-		seq := bytesToSeq(seqBytes)
+		seq := common.BytesToSeq(seqBytes)
 		stat, err := getStat(queue, b)
 		if err != nil {
 			return err
@@ -310,7 +278,7 @@ func removeByID(queue string, id []byte, b *bolt.Bucket) error {
 }
 
 func removeRef(seq []byte, b *bolt.Bucket) error {
-	sb := b.Bucket(seqToIDBucket)
+	sb := b.Bucket(common.SeqToIDBucket)
 	if sb == nil {
 		return nil
 	}
@@ -322,27 +290,11 @@ func removeRef(seq []byte, b *bolt.Bucket) error {
 	if err != nil {
 		return err
 	}
-	sb = b.Bucket(idToSeqBucket)
+	sb = b.Bucket(common.IDToSeqBucket)
 	if sb == nil {
-		return errSeqToIDBucket
+		return common.ErrSeqToIDBucket
 	}
 	return sb.Delete(id)
-}
-
-func setSeqToIDRef(seq, id []byte, b *bolt.Bucket) error {
-	sb, err := b.CreateBucketIfNotExists(idToSeqBucket)
-	if err != nil {
-		return err
-	}
-	err = sb.Put(id, seq)
-	if err != nil {
-		return err
-	}
-	sb, err = b.CreateBucketIfNotExists(seqToIDBucket)
-	if err != nil {
-		return err
-	}
-	return sb.Put(seq, id)
 }
 
 func setQueueHead(queue string, head uint64, b *bolt.Bucket) error {
@@ -367,14 +319,6 @@ func setQueueTail(queue string, tail uint64, b *bolt.Bucket) error {
 	return putStat(queue, stat, b)
 }
 
-func seqToBytes(seq uint64) []byte {
-	encoded, err := json.Marshal(seq)
-	if err != nil {
-		log.Error(err)
-	}
-	return encoded
-}
-
 func shift(queue string) (data interface{}, err error) {
 	err = db.Update(func(tx *bolt.Tx) error {
 		var b *bolt.Bucket
@@ -389,7 +333,7 @@ func shift(queue string) (data interface{}, err error) {
 			return err
 		}
 		for seq := stat.Head; seq <= stat.Tail; seq++ {
-			seqBytes := seqToBytes(seq)
+			seqBytes := common.SeqToBytes(seq)
 			encoded = b.Get(seqBytes)
 			if encoded == nil {
 				continue
@@ -431,15 +375,15 @@ func unshift(queue string, data interface{}) (err error) {
 		if stat.Head == 0 {
 			return errQueueInTheBegining
 		}
-		if _id, ok := extractID(data); ok {
+		if _id, ok := common.ExtractID(data); ok {
 			id = []byte(_id)
 			err = removeByID(queue, id, b)
-			if err != nil && err != errNotFound {
+			if err != nil && err != common.ErrNotFound {
 				return err
 			}
 		}
 		stat.Head--
-		seqBytes := seqToBytes(stat.Head)
+		seqBytes := common.SeqToBytes(stat.Head)
 		encoded, err = json.Marshal(data)
 		if err != nil {
 			return err
@@ -449,7 +393,7 @@ func unshift(queue string, data interface{}) (err error) {
 			return err
 		}
 		if id != nil {
-			err = setSeqToIDRef(seqBytes, id, b)
+			err = common.SetSeqToIDRef(seqBytes, id, b)
 			if err != nil {
 				return err
 			}

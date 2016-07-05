@@ -7,7 +7,7 @@ import (
 	. "github.com/franela/goblin"
 )
 
-var fileName = "queue.db"
+var fileName = "queue-test.db"
 
 var strings = []string{"0", "1", "2", "3", "4", "5"}
 
@@ -34,22 +34,22 @@ func Test(t *testing.T) {
 			queue := "test2"
 			err := Push(queue, 2)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(1)
+			g.Assert(int(Len(queue))).Equal(1)
 		})
 		g.It("should replace queued item when pushed item with id existed in the queue", func() {
 			queue := "test22"
 			err := Push(queue, map[string]interface{}{"_id": "1", "data": 1})
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(1)
+			g.Assert(int(Len(queue))).Equal(1)
 			err = Push(queue, map[string]interface{}{"_id": "2", "data": 3})
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(2)
+			g.Assert(int(Len(queue))).Equal(2)
 			err = Push(queue, map[string]interface{}{"_id": "1", "data": 4})
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(2)
+			g.Assert(int(Len(queue))).Equal(2)
 			item, err := Shift(queue)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(1)
+			g.Assert(int(Len(queue))).Equal(1)
 			g.Assert(item.(map[string]interface{})["data"].(float64)).Equal(float64(4))
 		})
 	})
@@ -61,13 +61,13 @@ func Test(t *testing.T) {
 				err := Push(queue, p)
 				g.Assert(err == nil).IsTrue()
 			}
-			g.Assert(int(Length(queue))).Equal(6)
+			g.Assert(int(Len(queue))).Equal(6)
 			for _, p := range strings {
 				item, err := Shift(queue)
 				g.Assert(err == nil).IsTrue()
 				g.Assert(item.(string)).Equal(p)
 			}
-			g.Assert(int(Length(queue))).Equal(0)
+			g.Assert(int(Len(queue))).Equal(0)
 		})
 		g.It("should return error when queue is not exists", func() {
 			queue := "testErrUnshift"
@@ -84,16 +84,16 @@ func Test(t *testing.T) {
 				err := Push(queue, p)
 				g.Assert(err == nil).IsTrue()
 			}
-			g.Assert(int(Length(queue))).Equal(5)
+			g.Assert(int(Len(queue))).Equal(5)
 			item, err := Shift(queue)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(4)
+			g.Assert(int(Len(queue))).Equal(4)
 			g.Assert(item.(map[string]interface{})["_id"].(string)).Equal("0")
 			err = Unshift(queue, item)
 			g.Assert(err == nil).IsTrue()
 			item, err = Shift(queue)
 			g.Assert(err == nil).IsTrue()
-			g.Assert(int(Length(queue))).Equal(4)
+			g.Assert(int(Len(queue))).Equal(4)
 			g.Assert(item.(map[string]interface{})["_id"].(string)).Equal("0")
 		})
 	})
@@ -105,9 +105,9 @@ func Test(t *testing.T) {
 				err := Push(queue, p)
 				g.Assert(err == nil).IsTrue()
 			}
-			g.Assert(int(Length(queue))).Equal(5)
+			g.Assert(int(Len(queue))).Equal(5)
 			err := Remove(queue, "2")
-			g.Assert(int(Length(queue))).Equal(4)
+			g.Assert(int(Len(queue))).Equal(4)
 			g.Assert(err == nil).IsTrue()
 			for i, p := range maps {
 				if i == 2 {
@@ -117,7 +117,7 @@ func Test(t *testing.T) {
 				g.Assert(err == nil).IsTrue()
 				g.Assert(item.(map[string]interface{})).Equal(p)
 			}
-			g.Assert(int(Length(queue))).Equal(0)
+			g.Assert(int(Len(queue))).Equal(0)
 		})
 		g.It("should return error when queue is not exists", func() {
 			queue := "test5"
@@ -129,44 +129,46 @@ func Test(t *testing.T) {
 	g.Describe("#Length", func() {
 		g.It("should return zero when queue is not exists", func() {
 			queue := "test6"
-			g.Assert(Length(queue)).Equal(uint64(0))
+			g.Assert(Len(queue)).Equal(uint64(0))
 		})
 	})
 
 	g.Describe("#Drop", func() {
 		g.It("should drop queue and all it's items", func() {
 			queue := "testDrop"
-			g.Assert(Length(queue)).Equal(uint64(0))
+			g.Assert(Len(queue)).Equal(uint64(0))
 			for _, p := range strings {
 				err := Push(queue, p)
 				g.Assert(err == nil).IsTrue()
 			}
-			g.Assert(Length(queue)).Equal(uint64(6))
+			g.Assert(Len(queue)).Equal(uint64(6))
 			err := Drop(queue)
 			g.Assert(err == nil).IsTrue()
 			err = Drop(queue)
 			g.Assert(err == nil).IsFalse("queue must be already dropped")
 			_, err = Shift(queue)
 			g.Assert(err == nil).IsFalse("queue must be already dropped")
-			g.Assert(Length(queue)).Equal(uint64(0))
+			g.Assert(Len(queue)).Equal(uint64(0))
 		})
 	})
 
 	g.Describe("#Get", func() {
 		g.It("should return item from queue by provided _id, but keep it in queue untoched", func() {
 			queue := "testGet"
-			g.Assert(Length(queue)).Equal(uint64(0))
+			g.Assert(Len(queue)).Equal(uint64(0))
 			for _, p := range maps {
 				err := Push(queue, p)
 				g.Assert(err == nil).IsTrue()
 			}
-			g.Assert(Length(queue)).Equal(uint64(5))
+			g.Assert(Len(queue)).Equal(uint64(5))
 			_item, err := Get(queue, "1")
 			g.Assert(err == nil).IsTrue()
-			g.Assert(Length(queue)).Equal(uint64(5))
+			g.Assert(Len(queue)).Equal(uint64(5))
 			item := _item.(map[string]interface{})
 			g.Assert(item["_id"].(string)).Equal("1")
 			g.Assert(item["data"].(string)).Equal("11")
 		})
 	})
+
+	os.Remove(fileName)
 }

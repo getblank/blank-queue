@@ -98,7 +98,7 @@ func lengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}
 	if !ok {
 		return nil, errInvalidArguments
 	}
-	l := queue.Length(q)
+	l := queue.Len(q)
 	log.WithField("lenght", l).WithField("queue", q).Debug("Length request processed")
 	return l, nil
 }
