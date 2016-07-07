@@ -55,7 +55,7 @@ func Back(list string) (data interface{}, seq int, err error) {
 	if Len(list) == 0 {
 		return nil, 0, errListIsEmpty
 	}
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
 			return common.ErrNotFound
@@ -94,7 +94,7 @@ func Front(list string) (data interface{}, seq int, err error) {
 	if Len(list) == 0 {
 		return nil, 0, errListIsEmpty
 	}
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
 			return common.ErrNotFound
@@ -389,7 +389,7 @@ func UpdateByID(list string, data interface{}) (err error) {
 }
 
 func Next(list string, _n int) (data interface{}, n int, err error) {
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
 			return common.ErrNotFound
@@ -420,7 +420,7 @@ func Next(list string, _n int) (data interface{}, n int, err error) {
 }
 
 func Prev(list string, _n int) (data interface{}, n int, err error) {
-	err = db.Update(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(list))
 		if b == nil {
 			return common.ErrNotFound
