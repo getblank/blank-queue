@@ -375,6 +375,20 @@ func listUpdateByIDHandler(c *wango.Conn, _uri string, args ...interface{}) (int
 	return nil, err
 }
 
+// args: list string
+func listLengthHandler(c *wango.Conn, _uri string, args ...interface{}) (interface{}, error) {
+	log.WithField("args", args).Debug("List Length arrived")
+	if len(args) == 0 {
+		return nil, errInvalidArguments
+	}
+	l, ok := args[0].(string)
+	if !ok {
+		return nil, errInvalidArguments
+	}
+	length := lists.Len(l)
+	return length, nil
+}
+
 func internalOpenCallback(c *wango.Conn) {
 	log.Info("Connected client", c.ID())
 }
@@ -407,6 +421,7 @@ func startServer() {
 	wampServer.RegisterRPCHandler("list.get", listGetHandler)
 	wampServer.RegisterRPCHandler("list.getById", listGetByIDHandler)
 	wampServer.RegisterRPCHandler("list.updateById", listUpdateByIDHandler)
+	wampServer.RegisterRPCHandler("list.length", listLengthHandler)
 
 	s := new(websocket.Server)
 	s.Handshake = func(c *websocket.Config, r *http.Request) error {
