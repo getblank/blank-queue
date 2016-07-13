@@ -4,6 +4,7 @@ os:
 go:
   - 1.6.2
 before_install:
+  - sudo apt-get install -qq upx
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
 script:
@@ -12,8 +13,11 @@ script:
   - $HOME/gopath/bin/goveralls -service=travis-ci
 after_success:
   - go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
+  - upx --best blank-queue
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-linux/blank-queue
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
+
   - GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
+  - upx --best blank-queue
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-osx/blank-queue
   - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
