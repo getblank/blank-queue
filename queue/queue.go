@@ -77,7 +77,7 @@ func Unshift(queue string, data interface{}) error {
 // Init is a main entry point for package
 func Init(file string) {
 	var err error
-	db, err = bolt.Open(file, os.ModeExclusive, nil)
+	db, err = bolt.Open(file, 0644, nil)
 	if err != nil {
 		panic(err)
 	}
