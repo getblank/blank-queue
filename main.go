@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"gopkg.in/gemnasium/logrus-graylog-hook.v1"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -22,6 +24,25 @@ func main() {
 	if os.Getenv("BLANK_DEBUG") != "" {
 		log.SetLevel(log.DebugLevel)
 	}
+	log.SetFormatter(&log.JSONFormatter{})
+	if os.Getenv("GRAYLOG2_HOST") != "" {
+		host := os.Getenv("GRAYLOG2_HOST")
+		port := os.Getenv("GRAYLOG2_PORT")
+		if port == "" {
+			port = "12201"
+		}
+		source := os.Getenv("GRAYLOG2_SOURCE")
+		if source == "" {
+			source = "blank-queue"
+		}
+		facility := os.Getenv("GRAYLOG2_FACILITY")
+		if facility == "" {
+			facility = "BLANK"
+		}
+		hook := graylog.NewGraylogHook(host+":"+port, facility, map[string]interface{}{"source-app": source})
+		log.AddHook(hook)
+	}
+
 	var srAddress, port, qdbFile, ldbFile *string
 	var verFlag *bool
 	rootCmd := &cobra.Command{
