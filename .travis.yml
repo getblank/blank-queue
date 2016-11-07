@@ -12,12 +12,25 @@ script:
   - go test ./...
   - $HOME/gopath/bin/goveralls -service=travis-ci
 after_success:
-  - go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
-  - upx --best blank-queue
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-linux/blank-queue
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
+  - go build -o blank-queue-linux-amd64 -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
+  - upx --best blank-queue-linux-amd64
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue-linux-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
+  - if [[ ${TRAVIS_TAG} ]]; then
+      curl --ftp-create-dirs --data-binary -k -T ./blank-queue-linux-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/${TRAVIS_TAG}/blank-queue-linux-amd64;
+    fi
 
-  - GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
-  # - upx --best blank-queue
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/$(date +%Y-%m-%d_%H:%M)-osx/blank-queue
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
+  - GOOS=darwin GOARCH=amd64 go build -o blank-queue-darwin-amd64 -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
+  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue-darwin-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
+  - if [[ ${TRAVIS_TAG} ]]; then
+      curl --ftp-create-dirs --data-binary -k -T ./blank-queue-darwin-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/${TRAVIS_TAG}/blank-queue-darwin-amd64;
+    fi
+
+deploy:
+  provider: releases
+  api_key: "$GITHUB_OAUTH_TOKEN"
+  file:
+    - blank-queue-linux-amd64
+    - blank-queue-darwin-amd64
+  skip_cleanup: true
+  on:
+    tags: true
