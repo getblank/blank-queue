@@ -7,7 +7,8 @@ import (
 	"gopkg.in/gemnasium/logrus-graylog-hook.v2"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/spf13/cobra"
+
+	"flag"
 
 	"github.com/getblank/blank-queue/intranet"
 	"github.com/getblank/blank-queue/lists"
@@ -39,34 +40,22 @@ func main() {
 		log.AddHook(hook)
 	}
 
-	var srAddress, port, qdbFile, ldbFile *string
-	var verFlag *bool
-	rootCmd := &cobra.Command{
-		Use:   "blank-queue",
-		Short: "Queue microservice for Blank platform",
-		Long:  "The next generation of web applications. This is the queue subsystem.",
-		Run: func(cmd *cobra.Command, args []string) {
-			if *verFlag {
-				printVersion()
-				return
-			}
-			log.Info("blank-queue started")
-			go queue.Init(*qdbFile)
-			go lists.Init(*ldbFile)
-			intranet.Init(*srAddress, *port)
-		},
+	srAddress := flag.String("s", "ws://localhost:1234", "Service registry uri")
+	port := flag.String("p", "8083", "TCP port to listen")
+	qdbFile := flag.String("q", "queue.db", "Queue database filename")
+	ldbFile := flag.String("l", "lists.db", "Lists database filename")
+	verFlag := flag.Bool("v", false, "Prints version and exit")
+	flag.Parse()
+
+	if *verFlag {
+		printVersion()
+		return
 	}
 
-	srAddress = rootCmd.PersistentFlags().StringP("service-registry", "s", "ws://localhost:1234", "Service registry uri")
-	port = rootCmd.PersistentFlags().StringP("port", "p", "8083", "TCP port to listen")
-	qdbFile = rootCmd.PersistentFlags().StringP("qdb", "q", "queue.db", "Queue database filename")
-	ldbFile = rootCmd.PersistentFlags().StringP("ldb", "l", "lists.db", "Lists database filename")
-	verFlag = rootCmd.PersistentFlags().BoolP("version", "v", false, "Prints version and exit")
-
-	if err := rootCmd.Execute(); err != nil {
-		println(err.Error())
-		os.Exit(-1)
-	}
+	log.Info("blank-queue started")
+	go queue.Init(*qdbFile)
+	go lists.Init(*ldbFile)
+	intranet.Init(*srAddress, *port)
 }
 
 func printVersion() {
