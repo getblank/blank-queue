@@ -2,9 +2,8 @@ language: go
 os:
   - linux
 go:
-  - 1.7
+  - 1.8.1
 before_install:
-  - sudo apt-get install -qq upx
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
 script:
@@ -13,17 +12,8 @@ script:
   - $HOME/gopath/bin/goveralls -service=travis-ci
 after_success:
   - go build -o blank-queue-linux-amd64 -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
-  - upx --best blank-queue-linux-amd64
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue-linux-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/linux/blank-queue
-  - if [[ ${TRAVIS_TAG} ]]; then
-      curl --ftp-create-dirs --data-binary -k -T ./blank-queue-linux-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/${TRAVIS_TAG}/blank-queue-linux-amd64;
-    fi
-
   - GOOS=darwin GOARCH=amd64 go build -o blank-queue-darwin-amd64 -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
-  - curl --ftp-create-dirs --data-binary -k -T ./blank-queue-darwin-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/osx/blank-queue
-  - if [[ ${TRAVIS_TAG} ]]; then
-      curl --ftp-create-dirs --data-binary -k -T ./blank-queue-darwin-amd64 -u $FTP_USER:$FTP_PASSWORD ftp://releases.getblank.net/releases/blank-queue/${TRAVIS_TAG}/blank-queue-darwin-amd64;
-    fi
+  - GOOS=windows GOARCH=amd64 go build -o blank-queue-win32-amd64.exe -ldflags "-X main.buildTime=`date +%Y-%m-%d:%H:%M:%S` -X main.gitHash=`git rev-parse --short HEAD`"
 
 deploy:
   provider: releases
@@ -31,6 +21,7 @@ deploy:
   file:
     - blank-queue-linux-amd64
     - blank-queue-darwin-amd64
+    - blank-queue-win32-amd64.exe
   skip_cleanup: true
   on:
     tags: true
