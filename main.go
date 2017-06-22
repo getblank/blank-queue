@@ -50,6 +50,14 @@ func main() {
 		return
 	}
 
+	if sr := os.Getenv("BLANK_SERVICE_REGISTRY_URI"); len(sr) > 0 {
+		srAddress = &sr
+	}
+	if srPort := os.Getenv("BLANK_SERVICE_REGISTRY_PORT"); len(srPort) > 0 {
+		addr := "ws://localhost:" + srPort
+		srAddress = &addr
+	}
+
 	log.Info("blank-queue started")
 	go queue.Init(*qdbFile)
 	go lists.Init(*ldbFile)
