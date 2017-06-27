@@ -57,6 +57,9 @@ func main() {
 		addr := "ws://localhost:" + srPort
 		srAddress = &addr
 	}
+	if qPort := os.Getenv("BLANK_QUEUE_PORT"); len(qPort) > 0 {
+		port = &qPort
+	}
 
 	log.Info("blank-queue started")
 	go queue.Init(*qdbFile)
